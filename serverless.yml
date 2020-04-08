@@ -9,14 +9,27 @@ provider:
 
   iamRoleStatements:
     - Effect: "Allow"
+      Action: 
+        - "dynamodb:PutItem"
+        - "dynamodb:Scan"
+      Resource:
+        - !GetAtt Table.Arn
+    - Effect: "Allow"
       Action:
         - "s3:PutObject"
-      Resource:
-        Fn::Join:
-          - ""
-          - - "arn:aws:s3:::"
-            - "Ref" : "Storage"
-            - "/*"
+        - "s3:PutObjectAcl"
+        - "s3:GetBucketLocation"
+      Resource: 
+        - Fn::Join:
+            - ""
+            - - "arn:aws:s3:::"
+              - "Ref" : "Storage"
+              - "/*"
+        - Fn::Join:
+            - ""
+            - - "arn:aws:s3:::"
+              - "Ref" : "Storage"
+    
     - Effect: "Allow"
       Action:
         - "s3:ListBucket"
@@ -32,18 +45,34 @@ provider:
             - "/*"
 
   environment:
-    PUT: PSR
     Bucket: !Ref Storage
+    Table: !Ref Table
 
 functions:
-  hello:
-    handler: handler.hello
+  upload:
+    handler: handler.upload
     events:
       - http:
-          path: psr
+          path: upload
+          method: post
+  list:
+    handler: handler.list
+    events:
+      - http:
+          path: list
           method: get
 
 resources:
- Resources:
-   Storage:
-     Type: AWS::S3::Bucket
+  Resources:
+    Storage:
+      Type: AWS::S3::Bucket
+    Table:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: ID
+            AttributeType: S
+        KeySchema:
+          - AttributeName: ID
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
