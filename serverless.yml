@@ -9,9 +9,15 @@ provider:
 
   iamRoleStatements:
     - Effect: "Allow"
+      Action:
+        - "rekognition:DetectLabels"
+      Resource:
+        - "*"
+    - Effect: "Allow"
       Action: 
         - "dynamodb:PutItem"
         - "dynamodb:Scan"
+        - "dynamodb:UpdateItem"
       Resource:
         - !GetAtt Table.Arn
     - Effect: "Allow"
@@ -61,6 +67,16 @@ functions:
       - http:
           path: list
           method: get
+
+  created:
+    handler: handler.created
+    events:
+      - s3:
+          bucket: !Ref Storage
+          event: s3:ObjectCreated:*
+          rules:
+            - suffix: .png
+          existing: true
 
 resources:
   Resources:

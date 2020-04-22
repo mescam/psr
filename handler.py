@@ -7,6 +7,7 @@ import base64
 
 s3client = boto3.client("s3")
 dynamodb = boto3.resource("dynamodb")
+rekog = boto3.client('rekognition')
 
 bucket = os.getenv("Bucket")
 table = dynamodb.Table(os.getenv("Table"))
@@ -51,3 +52,47 @@ def upload(event, context):
     }
 
     return response
+
+def created(event, context):
+    def check_hotdog(records):
+        for i in records:
+            if i["Name"] == "Hot Dog":
+                return True
+        return False
+    
+    for i in event["Records"]:
+        bucket = i["s3"]["bucket"]["name"]
+        key = i["s3"]["object"]["key"]
+        print(bucket, key)
+
+        response = rekog.detect_labels(
+            Image={
+                "S3Object": {
+                    "Bucket": bucket,
+                    "Name": key
+                }
+            },
+            MaxLabels=10,
+            MinConfidence=90
+        )
+        result = check_hotdog(response["Labels"])
+
+        # table.put_item(Item={
+        #     "ID": key.split(".")[0],
+        #     "Result": True,
+        #     "HotDog": result
+        # })
+        table.update_item(
+            Key={
+                "ID": key
+            },
+            UpdateExpression="set #s = :r, HotDog = :h",
+            ExpressionAttributeValues={
+                ":r": True,
+                ":h": result
+            },
+            ExpressionAttributeNames={
+                "#s": "Result"
+            }
+        )
+    return True
